@@ -1,6 +1,6 @@
 streamlit
 python-docx
 PyMuPDF
-openai
 python-dotenv
 openpyxl
+openai>=1.0.0
