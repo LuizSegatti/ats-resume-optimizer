@@ -122,7 +122,7 @@ def generate_cover_letter(resume_text, jd_text, api_key):
         "- Do not fabricate experiences.\n"
         "- Include the company name and job title in the letter.\n\n"
         f"Job Description:\n{jd_text}\n\nResume:\n{resume_text}"
-        )
+    )
 
     try:
         response = client.chat.completions.create(
