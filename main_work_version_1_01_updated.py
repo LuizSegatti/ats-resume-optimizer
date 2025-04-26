@@ -1,5 +1,6 @@
 # Resume Matcher App – GPT-Based Analysis, Resume Rewriter, and Excel Logger
-import PySimpleGUI as sg
+# import PySimpleGUI as sg "Not more necessary for Web applications"
+import streamlit as st
 import fitz  # PyMuPDF
 import docx
 import os
@@ -114,8 +115,7 @@ def extract_text(file_path):
             try:
                 return "\n".join([p.text for p in docx.Document(file_path).paragraphs])
             except Exception:
-                sg.popup(f"Please close the file:\n{file_path}")
-                time.sleep(1)
+                raise Exception(f"Please make sure the file is not open: {file_path}")
     return ""
 
 # === Replacements Parser ===
@@ -138,7 +138,7 @@ def apply_replacements_to_docx(original_path, replacements):
             doc = docx.Document(original_path)
             break
         except Exception:
-            sg.popup(f"Please close the resume file:\n{original_path}")
+            st.warning(f"⚠️ Please close the resume file:\n{original_path}")
             time.sleep(1)
     changes = []
     for para in doc.paragraphs:
@@ -178,7 +178,7 @@ def log_gpt_results(tracker_path, resume_name, jd_name, score, changes, resume_f
         try:
             wb = openpyxl.load_workbook(tracker_path)
         except PermissionError:
-            sg.popup("⚠️ Please close the Excel file before continuing.")
+            st.warning("⚠️ Please close the Excel file before continuing.")
             time.sleep(1)
 
     try:
@@ -270,11 +270,6 @@ layout = [
 window = sg.Window("Resume & JD Auto-Matcher (ChatGPT Enabled)", layout)
 
 # === Main App Loop ===
-while True:
-    event, values = window.read()
-    if event in (sg.WINDOW_CLOSED, "Exit"):
-        break
-
     if event == "Analyze":
         resume_path, jd_path, tracker_path = values["-RESUME-"], values["-JD-"], values["-TRACKER-"]
         if not (resume_path and jd_path and tracker_path):
@@ -331,10 +326,10 @@ while True:
                 company_name=company_name
             )
 
-            sg.popup(f"✅ Analysis complete!\nSaved as '{resume_filename}' and logged in Excel.\n📄 Cover letter saved to:\n{cover_path}")
+            st.success(f"✅ Analysis complete!\nSaved as '{resume_filename}' and logged in Excel.\n📄 Cover letter saved to:\n{cover_path}")
 
         except Exception as e:
-            sg.popup("ChatGPT analysis failed:", str(e))
+            st.error(f"ChatGPT analysis failed: {str(e)}")
 
 
 window.close()
