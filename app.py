@@ -93,7 +93,7 @@ if analyze_btn and uploaded_resume and uploaded_jd:
         # Generate Cover Letter
         cover_letter_text = generate_cover_letter(resume_text, jd_text, api_key)
         cover_path, _ = save_customized_cover_letter(
-            template_path=os.path.join(os.environ["USERPROFILE"], "OneDrive", "Job_Follow-up", "01-Base_Resumes", "Cover Letter Template.docx"),
+            template_path = "Cover_Letter_Template.docx"
             output_folder=tempfile.gettempdir(),
             cover_text=cover_letter_text,
             resume_text=resume_text,

@@ -1,8 +1,10 @@
+# gpt_helper_work_version.py - Updated for OpenAI API v1.0.0+
+
 import openai
+from openai import OpenAI
 
 def get_resume_analysis(resume_text, jd_text, api_key, include_replacements=False, prompt_instructions=None):
-    openai.api_key = api_key
-
+    client = OpenAI(api_key=api_key)
     # Base GPT prompt
     base_prompt = (
         "Act as an Applicant Tracking System (ATS) used by a hiring company. "
@@ -104,16 +106,14 @@ def get_resume_analysis(resume_text, jd_text, api_key, include_replacements=Fals
             temperature=0.5,
             max_tokens=2000
         )
-        return response["choices"][0]["message"]["content"]
+        return response.choices[0].message.content
 
     except Exception as e:
         return f"Error contacting OpenAI: {str(e)}"
     
 # === Add Cover Letter ===
-
 def generate_cover_letter(resume_text, jd_text, api_key):
-    import openai
-    openai.api_key = api_key
+	client = OpenAI(api_key=api_key)
 
     prompt = (
         "Act as a professional career assistant. Using the resume and job description provided, "
@@ -135,6 +135,6 @@ def generate_cover_letter(resume_text, jd_text, api_key):
             temperature=0.7,
             max_tokens=1000
         )
-        return response["choices"][0]["message"]["content"]
+        return response.choices[0].message.content
     except Exception as e:
         return f"Error generating cover letter: {str(e)}"
