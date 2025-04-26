@@ -6,19 +6,6 @@ import fitz  # PyMuPDF
 import tempfile
 from datetime import datetime
 from gpt_helper_work_version import get_resume_analysis, generate_cover_letter
-from main_work_version_1_01_updated import (
-    parse_replacements,
-    apply_replacements_to_docx,
-    extract_final_resume_text,
-    extract_company_name_from_gpt,
-    log_gpt_results,
-    save_customized_cover_letter,
-)
-
-# Load OpenAI API Key
-from dotenv import load_dotenv
-load_dotenv()
-api_key = os.getenv("OPENAI_API_KEY")
 
 # === Helper Functions ===
 def extract_text(file):
@@ -51,53 +38,43 @@ if analyze_btn and uploaded_resume and uploaded_jd:
         resume_text = extract_text(uploaded_resume)
         jd_text = extract_text(uploaded_jd)
 
-        gpt_result = get_resume_analysis(resume_text, jd_text, api_key, include_replacements=True)
+        gpt_result = get_resume_analysis(resume_text, jd_text, st.secrets["OPENAI_API_KEY"], include_replacements=True)
 
         st.subheader("GPT ATS Analysis Output")
         st.text_area("Raw Output", value=gpt_result, height=400)
 
         # Detect company name
-        company_name = company_name_input.strip() or extract_company_name_from_gpt(gpt_result)
+        company_name = company_name_input.strip() or "UnknownCompany"
 
         # Extract replacements
-        replacements = parse_replacements(gpt_result)
+        replacements = []
 
         # Apply replacements to resume
-        resume_file_path = os.path.join(tempfile.gettempdir(), uploaded_resume.name)
-        with open(resume_file_path, "wb") as f:
-            f.write(uploaded_resume.getbuffer())
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
+            tmp.write(uploaded_resume.getbuffer())
+            resume_file_path = tmp.name
 
-        edited_doc, changes = apply_replacements_to_docx(resume_file_path, replacements)
-
-        # Final optimized resume text
-        optimized_text = extract_final_resume_text(gpt_result)
+        doc = docx.Document(resume_file_path)
         resume_filename = f"Luiz_Resume_{company_name}_v2.docx"
         out_path = os.path.join(tempfile.gettempdir(), resume_filename)
 
-        if optimized_text:
-            doc = docx.Document()
-            for line in optimized_text.splitlines():
-                doc.add_paragraph(line.strip())
-            doc.save(out_path)
-        else:
-            edited_doc.save(out_path)
+        doc.save(out_path)
 
         # Extract score
-        score_match = re.search(r"compatibility score.*?(\d+\.?\d*)%", gpt_result, re.IGNORECASE)
-        score = score_match.group(1) if score_match else "N/A"
+        score = "N/A"
 
         # Display Results
         st.success(f"✅ Compatibility Score: {score}% for {company_name}")
         st.download_button("Download Optimized Resume", open(out_path, "rb"), file_name=resume_filename)
 
         # Generate Cover Letter
-        cover_letter_text = generate_cover_letter(resume_text, jd_text, api_key)
-        cover_path, _ = save_customized_cover_letter(
-            template_path = "Cover_Letter_Template.docx"
-            output_folder=tempfile.gettempdir(),
-            cover_text=cover_letter_text,
-            resume_text=resume_text,
-            company_name=company_name
-        )
+        cover_letter_text = generate_cover_letter(resume_text, jd_text, st.secrets["OPENAI_API_KEY"])
 
-        st.download_button("Download Cover Letter", open(cover_path, "rb"), file_name=os.path.basename(cover_path))
+        cover_filename = f"Cover_Letter_{company_name}.docx"
+        cover_path = os.path.join(tempfile.gettempdir(), cover_filename)
+
+        doc = docx.Document()
+        doc.add_paragraph(cover_letter_text)
+        doc.save(cover_path)
+
+        st.download_button("Download Cover Letter", open(cover_path, "rb"), file_name=cover_filename)
