@@ -1,6 +1,5 @@
 # gpt_helper_work_version.py - Updated for OpenAI API v1.0.0+
 
-import openai
 from openai import OpenAI
 
 def get_resume_analysis(resume_text, jd_text, api_key, include_replacements=False, prompt_instructions=None):
@@ -97,7 +96,7 @@ def get_resume_analysis(resume_text, jd_text, api_key, include_replacements=Fals
     )
 
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4",  # Change to gpt-3.5-turbo if needed
             messages=[
                 {"role": "system", "content": "You are a professional ATS resume assistant."},
@@ -123,10 +122,10 @@ def generate_cover_letter(resume_text, jd_text, api_key):
         "- Do not fabricate experiences.\n"
         "- Include the company name and job title in the letter.\n\n"
         f"Job Description:\n{jd_text}\n\nResume:\n{resume_text}"
-    )
+        )
 
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4",
             messages=[
                 {"role": "system", "content": "You are a career assistant generating compelling cover letters."},
