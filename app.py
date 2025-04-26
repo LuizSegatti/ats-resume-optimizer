@@ -6,7 +6,7 @@ import fitz  # PyMuPDF
 import tempfile
 from datetime import datetime
 from gpt_helper_work_version import get_resume_analysis, generate_cover_letter
-from main_work_version_1_01 import (
+from main_work_version_1_01_updated import (
     parse_replacements,
     apply_replacements_to_docx,
     extract_final_resume_text,
