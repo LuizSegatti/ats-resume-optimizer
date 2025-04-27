@@ -53,12 +53,17 @@ def apply_replacements_to_docx(original_path, replacements):
 
 # Function to extract Company Name from JD
 def extract_company_name_from_jd(jd_text):
+    # First, check for "Company:" label
+    company_line = re.search(r'Company:\s*(.*)', jd_text, re.IGNORECASE)
+    if company_line:
+        return company_line.group(1).strip()
+
+    # Fallback to other patterns
     patterns = [
-        r'Company\s*Name\s*[:\-]?\s*(.*)',
-        r'About\s*(.*?)\s+is\s+a',
-        r'Join\s*(.*?)\s+as',
-        r'careers at\s*(.*?)\s',
-        r'work at\s*(.*?)\s',
+        r'About\s+(.*?)\s+is\s+a',
+        r'Join\s+(.*?)\s+as',
+        r'work at\s+(.*?)\s',
+        r'careers at\s+(.*?)\s',
     ]
     for pattern in patterns:
         match = re.search(pattern, jd_text, re.IGNORECASE)
@@ -68,7 +73,7 @@ def extract_company_name_from_jd(jd_text):
 
 # === Streamlit UI ===
 st.set_page_config(page_title="ATS Resume Optimizer", layout="wide")
-st.title("📄 ATS Resume Optimizer v1.0.1 – GPT Enhanced")
+st.title("📄 ATS Resume Optimizer v1.0.2 – GPT Enhanced")
 
 uploaded_resume = st.file_uploader("Upload Resume (PDF/DOCX)", type=["pdf", "docx"], key="resume")
 uploaded_jd = st.file_uploader("Upload Job Description (PDF/DOCX)", type=["pdf", "docx"], key="jd")
