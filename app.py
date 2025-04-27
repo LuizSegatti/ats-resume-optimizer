@@ -30,6 +30,7 @@ st.title("📄 ATS Resume Optimizer – GPT Enhanced")
 uploaded_resume = st.file_uploader("Upload Resume (PDF/DOCX)", type=["pdf", "docx"], key="resume")
 uploaded_jd = st.file_uploader("Upload Job Description (PDF/DOCX)", type=["pdf", "docx"], key="jd")
 company_name_input = st.text_input("Company Name (leave blank to auto-detect)")
+api_key = st.text_input("Enter your OpenAI API Key:", type="password")
 
 analyze_btn = st.button("Analyze Resume")
 
@@ -38,7 +39,8 @@ if analyze_btn and uploaded_resume and uploaded_jd:
         resume_text = extract_text(uploaded_resume)
         jd_text = extract_text(uploaded_jd)
 
-        gpt_result = get_resume_analysis(resume_text, jd_text, st.secrets["OPENAI_API_KEY"], include_replacements=True)
+        gpt_result = get_resume_analysis(resume_text, jd_text, api_key, include_replacements=True)
+        
         st.subheader("GPT ATS Analysis Output")
         st.text_area("Raw Output", value=gpt_result, height=400)
 
@@ -67,7 +69,7 @@ if analyze_btn and uploaded_resume and uploaded_jd:
         st.download_button("Download Optimized Resume", open(out_path, "rb"), file_name=resume_filename)
 
         # Generate Cover Letter
-        cover_letter_text = generate_cover_letter(resume_text, jd_text, st.secrets["OPENAI_API_KEY"])
+        cover_letter_text = generate_cover_letter(resume_text, jd_text, api_key)
 
         cover_filename = f"Cover_Letter_{company_name}.docx"
         cover_path = os.path.join(tempfile.gettempdir(), cover_filename)
