@@ -7,7 +7,7 @@ import tempfile
 import json
 from datetime import datetime
 from docx.shared import Pt
-from gpt_helper_work_version import get_resume_analysis, generate_cover_letter
+from gpt_helper_work_version import get_resume_analysis
 
 # Initialize session state variables
 for key in ["gpt_result", "optimized_resume_path", "optimized_cover_letter_path", "company_name", "candidate_name", "replacements"]:
@@ -78,9 +78,37 @@ def extract_candidate_name_from_resume(resume_text):
             return cleaned
     return "UnknownCandidate"
 
+# Function to generate cover letter avoiding direct company mention
+def generate_cover_letter(resume_text, jd_text, api_key):
+    from openai import OpenAI
+    client = OpenAI(api_key=api_key)
+    prompt = (
+        "Generate a professional Cover Letter based on the provided Resume and Job Description.\n"
+        "Constraints:\n"
+        "- Do NOT directly mention the Company Name from the Job Description.\n"
+        "- Refer generically to 'this opportunity', 'this position', or 'your organization'.\n"
+        "- Focus on matching the candidate's skills and experiences to the position requirements.\n"
+        "- Maintain a professional and engaging tone.\n"
+        f"Resume:\n{resume_text}\n\nJob Description:\n{jd_text}"
+    )
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a professional career assistant generating compelling cover letters."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=1000
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"Error generating cover letter: {str(e)}"
+
 # === Streamlit UI ===
 st.set_page_config(page_title="ATS Resume Optimizer", layout="wide")
-st.title("📄 ATS Resume Optimizer v1.0.4 – GPT Enhanced")
+st.title("📄 ATS Resume Optimizer v1.0.5 – GPT Enhanced")
 
 uploaded_resume = st.file_uploader("Upload Resume (PDF/DOCX)", type=["pdf", "docx"], key="resume")
 uploaded_jd = st.file_uploader("Upload Job Description (PDF/DOCX)", type=["pdf", "docx"], key="jd")
