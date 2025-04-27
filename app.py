@@ -38,7 +38,7 @@ if analyze_btn and uploaded_resume and uploaded_jd:
         resume_text = extract_text(uploaded_resume)
         jd_text = extract_text(uploaded_jd)
 
-        gpt_result = get_resume_analysis(resume_text, jd_text, "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",include_replacements=True)
+        gpt_result = get_resume_analysis(resume_text, jd_text, st.secrets["OPENAI_API_KEY"], include_replacements=True)
         st.subheader("GPT ATS Analysis Output")
         st.text_area("Raw Output", value=gpt_result, height=400)
 
@@ -67,7 +67,7 @@ if analyze_btn and uploaded_resume and uploaded_jd:
         st.download_button("Download Optimized Resume", open(out_path, "rb"), file_name=resume_filename)
 
         # Generate Cover Letter
-        cover_letter_text = generate_cover_letter(resume_text, jd_text, "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")
+        cover_letter_text = generate_cover_letter(resume_text, jd_text, st.secrets["OPENAI_API_KEY"])
 
         cover_filename = f"Cover_Letter_{company_name}.docx"
         cover_path = os.path.join(tempfile.gettempdir(), cover_filename)
