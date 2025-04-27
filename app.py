@@ -69,16 +69,18 @@ def extract_company_name_from_jd(jd_text):
             return match.group(1).strip()
     return "UnknownCompany"
 
-# Function to extract Candidate Name from GPT output
-def extract_candidate_name_from_gpt(gpt_output):
-    candidate_line = re.search(r'Name:\s*(.*)', gpt_output, re.IGNORECASE)
-    if candidate_line:
-        return candidate_line.group(1).strip()
+# Function to extract Candidate Name from Resume text
+def extract_candidate_name_from_resume(resume_text):
+    lines = resume_text.split('\n')
+    for line in lines:
+        cleaned = line.strip()
+        if cleaned and len(cleaned.split()) >= 2:
+            return cleaned
     return "UnknownCandidate"
 
 # === Streamlit UI ===
 st.set_page_config(page_title="ATS Resume Optimizer", layout="wide")
-st.title("📄 ATS Resume Optimizer v1.0.3 – GPT Enhanced")
+st.title("📄 ATS Resume Optimizer v1.0.4 – GPT Enhanced")
 
 uploaded_resume = st.file_uploader("Upload Resume (PDF/DOCX)", type=["pdf", "docx"], key="resume")
 uploaded_jd = st.file_uploader("Upload Job Description (PDF/DOCX)", type=["pdf", "docx"], key="jd")
@@ -111,7 +113,7 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
                 company_name = extract_company_name_from_jd(jd_text)
             st.session_state["company_name"] = company_name
 
-            candidate_name = extract_candidate_name_from_gpt(gpt_result)
+            candidate_name = extract_candidate_name_from_resume(resume_text)
             st.session_state["candidate_name"] = candidate_name
 
             # === Improved Resume Generation ===
