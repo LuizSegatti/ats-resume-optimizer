@@ -6,10 +6,11 @@ import fitz  # PyMuPDF
 import tempfile
 import json
 from datetime import datetime
+from docx.shared import Pt
 from gpt_helper_work_version import get_resume_analysis, generate_cover_letter
 
 # Initialize session state variables
-for key in ["gpt_result", "optimized_resume_path", "optimized_cover_letter_path", "company_name", "replacements"]:
+for key in ["gpt_result", "optimized_resume_path", "optimized_cover_letter_path", "company_name", "candidate_name", "replacements"]:
     if key not in st.session_state:
         st.session_state[key] = None
 
@@ -53,12 +54,9 @@ def apply_replacements_to_docx(original_path, replacements):
 
 # Function to extract Company Name from JD
 def extract_company_name_from_jd(jd_text):
-    # First, check for "Company:" label
     company_line = re.search(r'Company:\s*(.*)', jd_text, re.IGNORECASE)
     if company_line:
         return company_line.group(1).strip()
-
-    # Fallback to other patterns
     patterns = [
         r'About\s+(.*?)\s+is\s+a',
         r'Join\s+(.*?)\s+as',
@@ -71,9 +69,16 @@ def extract_company_name_from_jd(jd_text):
             return match.group(1).strip()
     return "UnknownCompany"
 
+# Function to extract Candidate Name from GPT output
+def extract_candidate_name_from_gpt(gpt_output):
+    candidate_line = re.search(r'Name:\s*(.*)', gpt_output, re.IGNORECASE)
+    if candidate_line:
+        return candidate_line.group(1).strip()
+    return "UnknownCandidate"
+
 # === Streamlit UI ===
 st.set_page_config(page_title="ATS Resume Optimizer", layout="wide")
-st.title("📄 ATS Resume Optimizer v1.0.2 – GPT Enhanced")
+st.title("📄 ATS Resume Optimizer v1.0.3 – GPT Enhanced")
 
 uploaded_resume = st.file_uploader("Upload Resume (PDF/DOCX)", type=["pdf", "docx"], key="resume")
 uploaded_jd = st.file_uploader("Upload Job Description (PDF/DOCX)", type=["pdf", "docx"], key="jd")
@@ -106,13 +111,32 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
                 company_name = extract_company_name_from_jd(jd_text)
             st.session_state["company_name"] = company_name
 
+            candidate_name = extract_candidate_name_from_gpt(gpt_result)
+            st.session_state["candidate_name"] = candidate_name
+
+            # === Improved Resume Generation ===
             updated_doc, changes = apply_replacements_to_docx(resume_path, replacements)
 
             improved_resume_filename = f"Luiz_Resume_{company_name}_v2.docx"
             improved_resume_path = os.path.join(tempfile.gettempdir(), improved_resume_filename)
             updated_doc.save(improved_resume_path)
-
             st.session_state["optimized_resume_path"] = improved_resume_path
+
+            # === Cover Letter Generation ===
+            cover_letter_text = generate_cover_letter(resume_text, jd_text, api_key)
+
+            cover_doc = docx.Document()
+            cover_doc.add_paragraph(cover_letter_text)
+            style = cover_doc.styles['Normal']
+            font = style.font
+            font.name = 'Arial'
+            font.size = Pt(11)
+
+            cover_letter_filename = f"Cover_Letter_{candidate_name}_{company_name}.docx"
+            cover_letter_path = os.path.join(tempfile.gettempdir(), cover_letter_filename)
+            cover_doc.save(cover_letter_path)
+
+            st.session_state["optimized_cover_letter_path"] = cover_letter_path
 
 # === Display Results if available ===
 if st.session_state["gpt_result"]:
@@ -125,4 +149,12 @@ if st.session_state["gpt_result"]:
             "Download Optimized Resume",
             open(st.session_state["optimized_resume_path"], "rb"),
             file_name=resume_filename
+        )
+
+    if st.session_state["optimized_cover_letter_path"]:
+        cover_filename = f"Cover_Letter_{st.session_state['candidate_name']}_{st.session_state['company_name']}.docx"
+        st.download_button(
+            "Download Cover Letter",
+            open(st.session_state["optimized_cover_letter_path"], "rb"),
+            file_name=cover_filename
         )
