@@ -51,9 +51,24 @@ def apply_replacements_to_docx(original_path, replacements):
                     changes.append((old, new))
     return doc, changes
 
+# Function to extract Company Name from JD
+def extract_company_name_from_jd(jd_text):
+    patterns = [
+        r'Company\s*Name\s*[:\-]?\s*(.*)',
+        r'About\s*(.*?)\s+is\s+a',
+        r'Join\s*(.*?)\s+as',
+        r'careers at\s*(.*?)\s',
+        r'work at\s*(.*?)\s',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, jd_text, re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+    return "UnknownCompany"
+
 # === Streamlit UI ===
 st.set_page_config(page_title="ATS Resume Optimizer", layout="wide")
-st.title("📄 ATS Resume Optimizer – GPT Enhanced")
+st.title("📄 ATS Resume Optimizer v1.0.1 – GPT Enhanced")
 
 uploaded_resume = st.file_uploader("Upload Resume (PDF/DOCX)", type=["pdf", "docx"], key="resume")
 uploaded_jd = st.file_uploader("Upload Job Description (PDF/DOCX)", type=["pdf", "docx"], key="jd")
@@ -81,7 +96,9 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
             replacements = parse_replacements_from_output(gpt_result)
             st.session_state["replacements"] = replacements
 
-            company_name = company_name_input.strip() or "UnknownCompany"
+            company_name = company_name_input.strip()
+            if not company_name:
+                company_name = extract_company_name_from_jd(jd_text)
             st.session_state["company_name"] = company_name
 
             updated_doc, changes = apply_replacements_to_docx(resume_path, replacements)
