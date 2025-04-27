@@ -112,7 +112,7 @@ def get_resume_analysis(resume_text, jd_text, api_key, include_replacements=Fals
     
 # === Add Cover Letter ===
 def generate_cover_letter(resume_text, jd_text, api_key):
-	client = OpenAI(api_key=api_key)
+    client = OpenAI(api_key=api_key)
 
     prompt = (
         "Act as a professional career assistant. Using the resume and job description provided, "
