@@ -108,7 +108,7 @@ def generate_cover_letter(resume_text, jd_text, api_key):
 
 # === Streamlit UI ===
 st.set_page_config(page_title="ATS Resume Optimizer", layout="wide")
-st.title("📄 ATS Resume Optimizer v1.0.5 – GPT Enhanced")
+st.title("📄 ATS Resume Optimizer v1.1.0 – GPT Enhanced")
 
 uploaded_resume = st.file_uploader("Upload Resume (PDF/DOCX)", type=["pdf", "docx"], key="resume")
 uploaded_jd = st.file_uploader("Upload Job Description (PDF/DOCX)", type=["pdf", "docx"], key="jd")
@@ -144,11 +144,17 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
             candidate_name = extract_candidate_name_from_resume(resume_text)
             st.session_state["candidate_name"] = candidate_name
 
-            # === Improved Resume Generation ===
-            updated_doc, changes = apply_replacements_to_docx(resume_path, replacements)
+            # Generate short names
+            candidate_short = ''.join([word[0] for word in candidate_name.split() if word])
+            company_words = company_name.split()
+            company_short = '_'.join(company_words[:2]) if len(company_words) >= 2 else company_name.replace(' ', '_')
+            timestamp = datetime.now().strftime('%y%m%d-%H%M')
 
-            improved_resume_filename = f"Luiz_Resume_{company_name}_v2.docx"
-            improved_resume_path = os.path.join(tempfile.gettempdir(), improved_resume_filename)
+            # === Improved Resume Generation ===
+            resume_filename = f"Resume_{candidate_short}_{company_short}_{timestamp}.docx"
+            improved_resume_path = os.path.join(tempfile.gettempdir(), resume_filename)
+
+            updated_doc, changes = apply_replacements_to_docx(resume_path, replacements)
             updated_doc.save(improved_resume_path)
             st.session_state["optimized_resume_path"] = improved_resume_path
 
@@ -162,7 +168,7 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
             font.name = 'Arial'
             font.size = Pt(11)
 
-            cover_letter_filename = f"Cover_Letter_{candidate_name}_{company_name}.docx"
+            cover_letter_filename = f"Cover_Letter_{candidate_short}_{company_short}_{timestamp}.docx"
             cover_letter_path = os.path.join(tempfile.gettempdir(), cover_letter_filename)
             cover_doc.save(cover_letter_path)
 
@@ -174,17 +180,15 @@ if st.session_state["gpt_result"]:
     st.text_area("Raw Output", value=st.session_state["gpt_result"], height=400)
 
     if st.session_state["optimized_resume_path"]:
-        resume_filename = f"Luiz_Resume_{st.session_state['company_name']}_v2.docx"
         st.download_button(
             "Download Optimized Resume",
             open(st.session_state["optimized_resume_path"], "rb"),
-            file_name=resume_filename
+            file_name=os.path.basename(st.session_state["optimized_resume_path"])
         )
 
     if st.session_state["optimized_cover_letter_path"]:
-        cover_filename = f"Cover_Letter_{st.session_state['candidate_name']}_{st.session_state['company_name']}.docx"
         st.download_button(
             "Download Cover Letter",
             open(st.session_state["optimized_cover_letter_path"], "rb"),
-            file_name=cover_filename
+            file_name=os.path.basename(st.session_state["optimized_cover_letter_path"])
         )
