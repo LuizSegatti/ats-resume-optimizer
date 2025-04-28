@@ -76,24 +76,35 @@ def extract_company_name_from_jd(jd_text):
 
 # === Main App Flow ===
 if analyze_btn and uploaded_resume and uploaded_jd and api_key:
-    ext = uploaded_resume.name.lower()
-    if not ext.endswith(".docx"):
-        st.error("Resume optimization currently supports DOCX files only. Please upload a .docx resume.")
+    ext_resume = uploaded_resume.name.lower()
+    ext_jd = uploaded_jd.name.lower()
+    if not ext_resume.endswith(".docx") or not ext_jd.endswith(".docx"):
+        st.error("Resume and Job Description must both be DOCX files. Please upload .docx files.")
     else:
         with st.spinner("Extracting and analyzing..."):
+
+            # Save Uploaded Resume and JD to Temp Files
             with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp_resume:
                 tmp_resume.write(uploaded_resume.getbuffer())
                 resume_path = tmp_resume.name
 
-            resume_text = extract_text(uploaded_resume)
-            jd_text = extract_text(uploaded_jd)
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp_jd:
+                tmp_jd.write(uploaded_jd.getbuffer())
+                jd_path = tmp_jd.name
 
+            # Extract Texts
+            resume_text = extract_text(resume_path)
+            jd_text = extract_text(jd_path)
+
+            # GPT Resume Analysis
             gpt_result = get_resume_analysis(resume_text, jd_text, api_key, include_replacements=True)
             st.session_state["gpt_result"] = gpt_result
 
+            # Parse Replacements
             replacements = parse_replacements_from_output(gpt_result)
             st.session_state["replacements"] = replacements
 
+            # Candidate and Company Name
             company_name = company_name_input.strip()
             if not company_name:
                 company_name = extract_company_name_from_jd(jd_text)
@@ -102,15 +113,15 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
             candidate_name = extract_candidate_name_from_resume(resume_text)
             st.session_state["candidate_name"] = candidate_name
 
-            # === Short Name Creation ===
+            # Short Name Creation
             candidate_short = ''.join([word[0] for word in candidate_name.split() if word])
             company_words = company_name.split()
             company_short = '_'.join(company_words[:2]) if len(company_words) >= 2 else company_name.replace(' ', '_')
 
-            # === Timestamp Creation ===
+            # Local Timestamp
             timestamp = datetime.now(local_tz).strftime("%y%m%d-%H%M")
 
-            # === Resume Improvement ===
+            # Resume Improvement
             resume_filename = f"Resume_{candidate_short}_{company_short}_{timestamp}.docx"
             improved_resume_path = os.path.join(tempfile.gettempdir(), resume_filename)
 
@@ -118,7 +129,7 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
             updated_doc.save(improved_resume_path)
             st.session_state["optimized_resume_path"] = improved_resume_path
 
-            # === Cover Letter Generation ===
+            # Cover Letter Generation
             cover_letter_text = generate_cover_letter(resume_text, jd_text, api_key)
             cover_letter_filename = f"Cover_Letter_{candidate_short}_{company_short}_{timestamp}.docx"
             cover_letter_path = os.path.join(tempfile.gettempdir(), cover_letter_filename)
