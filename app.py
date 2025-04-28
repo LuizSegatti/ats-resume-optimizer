@@ -1,75 +1,55 @@
 import streamlit as st
 import os
 import re
-import docx
 import fitz  # PyMuPDF
 import tempfile
-import json
-from datetime import datetime
+import docx
 from docx.shared import Pt
-from gpt_helper_work_version import get_resume_analysis
+from datetime import datetime
+import pytz
+from gpt_helper_work_version import get_resume_analysis, generate_cover_letter
+from main_work_version_1_01_updated import extract_text, apply_replacements_to_docx
 
-# Initialize session state variables
+# === Initialize session state variables ===
 for key in ["gpt_result", "optimized_resume_path", "optimized_cover_letter_path", "company_name", "candidate_name", "replacements"]:
     if key not in st.session_state:
         st.session_state[key] = None
 
-# === Helper Functions ===
-def extract_text(file):
-    ext = file.name.lower()
-    if ext.endswith(".pdf"):
-        doc = fitz.open(stream=file.read(), filetype="pdf")
-        text = "\n".join([page.get_text() for page in doc])
-        doc.close()
-        return text
-    elif ext.endswith(".docx"):
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
-            tmp.write(file.read())
-            tmp_path = tmp.name
-        doc = docx.Document(tmp_path)
-        return "\n".join([p.text for p in doc.paragraphs])
-    return ""
+# === Page config and title ===
+st.set_page_config(page_title="ATS Resume Optimizer", layout="wide")
+st.title("📄 ATS Resume Optimizer v1.1.1 – GPT Enhanced")
 
-# Function to parse replacements from GPT output
+# === Timezone Selection ===
+timezone_options = {
+    "Central Time (America/Chicago)": "America/Chicago",
+    "Eastern Time (America/New_York)": "America/New_York",
+    "Mountain Time (America/Denver)": "America/Denver",
+    "Pacific Time (America/Los_Angeles)": "America/Los_Angeles"
+}
+selected_timezone = st.selectbox(
+    "Select your Time Zone:",
+    options=list(timezone_options.keys()),
+    index=0
+)
+local_tz = pytz.timezone(timezone_options[selected_timezone])
+
+# === Upload Section ===
+st.subheader("Upload Files")
+uploaded_resume = st.file_uploader("Upload Resume (PDF/DOCX)", type=["pdf", "docx"], key="resume")
+uploaded_jd = st.file_uploader("Upload Job Description (PDF/DOCX)", type=["pdf", "docx"], key="jd")
+company_name_input = st.text_input("Company Name (optional)")
+api_key = st.text_input("Enter your OpenAI API Key:", type="password")
+
+analyze_btn = st.button("Analyze Resume")
+
+# === Helper Functions ===
 def parse_replacements_from_output(gpt_output):
     try:
         matches = re.findall(r'Replace \"(.*?)\" with \"(.*?)\"', gpt_output)
         return matches
-    except Exception as e:
+    except Exception:
         return []
 
-# Function to apply replacements to DOCX file
-def apply_replacements_to_docx(original_path, replacements):
-    doc = docx.Document(original_path)
-    changes = []
-    for para in doc.paragraphs:
-        for old, new in replacements:
-            if old.lower() in para.text.lower():
-                pattern = re.compile(re.escape(old), re.IGNORECASE)
-                updated_text = pattern.sub(new, para.text)
-                if updated_text != para.text:
-                    para.text = updated_text
-                    changes.append((old, new))
-    return doc, changes
-
-# Function to extract Company Name from JD
-def extract_company_name_from_jd(jd_text):
-    company_line = re.search(r'Company:\s*(.*)', jd_text, re.IGNORECASE)
-    if company_line:
-        return company_line.group(1).strip()
-    patterns = [
-        r'About\s+(.*?)\s+is\s+a',
-        r'Join\s+(.*?)\s+as',
-        r'work at\s+(.*?)\s',
-        r'careers at\s+(.*?)\s',
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, jd_text, re.IGNORECASE)
-        if match:
-            return match.group(1).strip()
-    return "UnknownCompany"
-
-# Function to extract Candidate Name from Resume text
 def extract_candidate_name_from_resume(resume_text):
     lines = resume_text.split('\n')
     for line in lines:
@@ -78,45 +58,23 @@ def extract_candidate_name_from_resume(resume_text):
             return cleaned
     return "UnknownCandidate"
 
-# Function to generate cover letter avoiding direct company mention
-def generate_cover_letter(resume_text, jd_text, api_key):
-    from openai import OpenAI
-    client = OpenAI(api_key=api_key)
-    prompt = (
-        "Generate a professional Cover Letter based on the provided Resume and Job Description.\n"
-        "Constraints:\n"
-        "- Do NOT directly mention the Company Name from the Job Description.\n"
-        "- Refer generically to 'this opportunity', 'this position', or 'your organization'.\n"
-        "- Focus on matching the candidate's skills and experiences to the position requirements.\n"
-        "- Maintain a professional and engaging tone.\n"
-        f"Resume:\n{resume_text}\n\nJob Description:\n{jd_text}"
-    )
+def extract_company_name_from_jd(jd_text):
+    company_line = re.search(r'Company:\s*(.*)', jd_text, re.IGNORECASE)
+    if company_line:
+        return company_line.group(1).strip()
+    patterns = [
+        r'About\s+(.*?)\s+is\s+a',
+        r'Join\s+(.*?)\s+as',
+        r'work\s+at\s+(.*?)\s+\(',
+        r'careers\s+at\s+(.*?)\s+'
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, jd_text, re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+    return "UnknownCompany"
 
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are a professional career assistant generating compelling cover letters."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.7,
-            max_tokens=1000
-        )
-        return response.choices[0].message.content
-    except Exception as e:
-        return f"Error generating cover letter: {str(e)}"
-
-# === Streamlit UI ===
-st.set_page_config(page_title="ATS Resume Optimizer", layout="wide")
-st.title("📄 ATS Resume Optimizer v1.1.0 – GPT Enhanced")
-
-uploaded_resume = st.file_uploader("Upload Resume (PDF/DOCX)", type=["pdf", "docx"], key="resume")
-uploaded_jd = st.file_uploader("Upload Job Description (PDF/DOCX)", type=["pdf", "docx"], key="jd")
-company_name_input = st.text_input("Company Name (optional)")
-api_key = st.text_input("Enter your OpenAI API Key:", type="password")
-
-analyze_btn = st.button("Analyze Resume")
-
+# === Main App Flow ===
 if analyze_btn and uploaded_resume and uploaded_jd and api_key:
     ext = uploaded_resume.name.lower()
     if not ext.endswith(".docx"):
@@ -144,13 +102,15 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
             candidate_name = extract_candidate_name_from_resume(resume_text)
             st.session_state["candidate_name"] = candidate_name
 
-            # Generate short names
+            # === Short Name Creation ===
             candidate_short = ''.join([word[0] for word in candidate_name.split() if word])
             company_words = company_name.split()
             company_short = '_'.join(company_words[:2]) if len(company_words) >= 2 else company_name.replace(' ', '_')
-            timestamp = datetime.now().strftime('%y%m%d-%H%M')
 
-            # === Improved Resume Generation ===
+            # === Timestamp Creation ===
+            timestamp = datetime.now(local_tz).strftime("%y%m%d-%H%M")
+
+            # === Resume Improvement ===
             resume_filename = f"Resume_{candidate_short}_{company_short}_{timestamp}.docx"
             improved_resume_path = os.path.join(tempfile.gettempdir(), resume_filename)
 
@@ -160,6 +120,8 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
 
             # === Cover Letter Generation ===
             cover_letter_text = generate_cover_letter(resume_text, jd_text, api_key)
+            cover_letter_filename = f"Cover_Letter_{candidate_short}_{company_short}_{timestamp}.docx"
+            cover_letter_path = os.path.join(tempfile.gettempdir(), cover_letter_filename)
 
             cover_doc = docx.Document()
             cover_doc.add_paragraph(cover_letter_text)
@@ -167,28 +129,24 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
             font = style.font
             font.name = 'Arial'
             font.size = Pt(11)
-
-            cover_letter_filename = f"Cover_Letter_{candidate_short}_{company_short}_{timestamp}.docx"
-            cover_letter_path = os.path.join(tempfile.gettempdir(), cover_letter_filename)
             cover_doc.save(cover_letter_path)
-
             st.session_state["optimized_cover_letter_path"] = cover_letter_path
 
-# === Display Results if available ===
+# === Results Display ===
 if st.session_state["gpt_result"]:
     st.subheader("GPT ATS Analysis Output")
     st.text_area("Raw Output", value=st.session_state["gpt_result"], height=400)
 
-    if st.session_state["optimized_resume_path"]:
-        st.download_button(
-            "Download Optimized Resume",
-            open(st.session_state["optimized_resume_path"], "rb"),
-            file_name=os.path.basename(st.session_state["optimized_resume_path"])
-        )
+if st.session_state["optimized_resume_path"]:
+    st.download_button(
+        "Download Optimized Resume",
+        open(st.session_state["optimized_resume_path"], "rb"),
+        file_name=os.path.basename(st.session_state["optimized_resume_path"])
+    )
 
-    if st.session_state["optimized_cover_letter_path"]:
-        st.download_button(
-            "Download Cover Letter",
-            open(st.session_state["optimized_cover_letter_path"], "rb"),
-            file_name=os.path.basename(st.session_state["optimized_cover_letter_path"])
-        )
+if st.session_state["optimized_cover_letter_path"]:
+    st.download_button(
+        "Download Cover Letter",
+        open(st.session_state["optimized_cover_letter_path"], "rb"),
+        file_name=os.path.basename(st.session_state["optimized_cover_letter_path"])
+    )
