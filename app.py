@@ -13,29 +13,37 @@ from io import BytesIO
 from gpt_helper_work_version import get_resume_analysis, generate_cover_letter
 from main_work_version_1_01_updated import extract_text, apply_replacements_to_docx
 
-# === App Version Title ===
+# === App Title and Layout ===
 st.set_page_config(page_title="ATS Resume Optimizer", layout="wide")
-st.title("📄 ATS Resume Optimizer v1.2.1 – GPT Enhanced + Tracker")
+st.title("📄 ATS Resume Optimizer v1.3 – GPT Enhanced + Tracker")
 
 # === Initialize session state variables ===
 for key in ["gpt_result", "optimized_resume_path", "optimized_cover_letter_path", "company_name", "candidate_name", "replacements"]:
     if key not in st.session_state:
         st.session_state[key] = None
 
-# === Timezone Selection ===
-timezone_options = {
-    "Central Time (America/Chicago)": "America/Chicago",
-    "Eastern Time (America/New_York)": "America/New_York",
-    "Mountain Time (America/Denver)": "America/Denver",
-    "Pacific Time (America/Los_Angeles)": "America/Los_Angeles"
-}
-selected_timezone = st.selectbox("Select your Time Zone:", options=list(timezone_options.keys()), index=0)
-local_tz = pytz.timezone(timezone_options[selected_timezone])
+# === Sidebar Tracker Instructions ===
+st.sidebar.info("""📘 **How the Tracker Works**
 
-# === Tracker System Sidebar ===
-st.sidebar.header("🔖 Tracker Management")
+• This app automatically logs each resume and job analysis in a private Excel tracker  
+• The tracker includes your JD titles, company names, resume changes, and ATS scores
 
-uploaded_tracker = st.sidebar.file_uploader("Upload Existing Tracker (Optional)", type=["xlsx"])
+🧠 **First time using the app?**  
+→ Just enter a **Tracker ID** (like your name or initials)  
+→ The app will **automatically create** your Excel tracker — no setup needed
+
+🗂️ **Used the app before?**  
+→ Upload your existing `.xlsx` tracker file to keep all previous entries
+
+📥 You can download the updated tracker after each analysis.
+""")
+
+# === Tracker Upload or New User ID ===
+uploaded_tracker = st.sidebar.file_uploader(
+    "📂 Upload Your Tracker (Optional)",
+    type=["xlsx"],
+    help="Upload your tracker file (.xlsx) to continue where you left off."
+)
 tracker_user_id = None
 jd_tracker = None
 resume_tracker = None
@@ -52,7 +60,7 @@ if uploaded_tracker:
     except Exception as e:
         st.sidebar.error(f"❌ Error loading Tracker file: {e}")
 else:
-    tracker_user_id = st.sidebar.text_input("New User: Enter Personal Tracker ID", value="")
+    tracker_user_id = st.sidebar.text_input("🆕 New User? Enter a Tracker ID", help="Enter your initials or name to personalize your new tracker file.")
     if tracker_user_id:
         tracker_filename = f"Resume_Job_Tracker_{tracker_user_id}.xlsx"
         jd_tracker = pd.DataFrame(columns=["ID#", "JD Title", "Company", "Analysis Date"])
@@ -61,68 +69,42 @@ else:
     else:
         tracker_filename = None
 
-# === Helper Functions ===
-def generate_new_id(df):
-    if df is None or df.empty:
-        return 1
-    else:
-        return int(df["ID#"].max()) + 1
+# === File Uploads & Inputs in Sidebar ===
+uploaded_resume = st.sidebar.file_uploader(
+    "📄 Upload Resume (DOCX)", type=["docx"], key="resume",
+    help="Upload your resume file in .docx format."
+)
+uploaded_jd = st.sidebar.file_uploader(
+    "📑 Upload Job Description (DOCX)", type=["docx"], key="jd",
+    help="Upload the job description in .docx format."
+)
+company_name_input = st.sidebar.text_input("🏢 Company Name (Optional)", help="If left blank, the app will try to detect it automatically.")
 
-def generate_excel_download(jd_df, resume_df, change_log_df):
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        jd_df.to_excel(writer, sheet_name="JD_Analysis", index=False)
-        resume_df.to_excel(writer, sheet_name="Resume_Tracker", index=False)
-        change_log_df.to_excel(writer, sheet_name="Resume_Change_Log", index=False)
-    return output.getvalue()
+api_key = st.sidebar.text_input("🔐 OpenAI API Key", type="password", help="Paste your OpenAI key here. It will not be saved.")
 
-def parse_replacements_from_output(gpt_output):
-    try:
-        return re.findall(r'Replace \"(.*?)\" with \"(.*?)\"', gpt_output)
-    except:
-        return []
+# === Timezone Selection ===
+timezone_options = {
+    "Central Time (America/Chicago)": "America/Chicago",
+    "Eastern Time (America/New_York)": "America/New_York",
+    "Mountain Time (America/Denver)": "America/Denver",
+    "Pacific Time (America/Los_Angeles)": "America/Los_Angeles"
+}
+selected_timezone = st.sidebar.selectbox("🌍 Select Your Time Zone", options=list(timezone_options.keys()), index=0)
+local_tz = pytz.timezone(timezone_options[selected_timezone])
 
-def extract_candidate_name_from_resume(resume_text):
-    lines = resume_text.split('\n')
-    for line in lines:
-        cleaned = line.strip()
-        if cleaned and len(cleaned.split()) >= 2:
-            return cleaned
-    return "UnknownCandidate"
+# === Action Button (Trigger in Sidebar) ===
+analyze_btn = st.sidebar.button("▶️ Analyze Resume")
 
-def extract_company_name_from_jd(jd_text):
-    company_line = re.search(r'Company:\s*(.*)', jd_text, re.IGNORECASE)
-    if company_line:
-        return company_line.group(1).strip()
-    patterns = [
-        r'About\s+(.*?)\s+is\s+a',
-        r'Join\s+(.*?)\s+as',
-        r'work\s+at\s+(.*?)\s+\(',
-        r'careers\s+at\s+(.*?)\s+'
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, jd_text, re.IGNORECASE)
-        if match:
-            return match.group(1).strip()
-    return "UnknownCompany"
-    # === Upload Section ===
-st.subheader("Upload Files")
-uploaded_resume = st.file_uploader("Upload Resume (PDF/DOCX)", type=["pdf", "docx"], key="resume")
-uploaded_jd = st.file_uploader("Upload Job Description (PDF/DOCX)", type=["pdf", "docx"], key="jd")
-company_name_input = st.text_input("Company Name (optional)")
-api_key = st.text_input("Enter your OpenAI API Key:", type="password")
-analyze_btn = st.button("Analyze Resume")
-
-# === Main App Flow ===
+# === Analysis Flow ===
 if analyze_btn and uploaded_resume and uploaded_jd and api_key:
     ext_resume = uploaded_resume.name.lower()
     ext_jd = uploaded_jd.name.lower()
     if not ext_resume.endswith(".docx") or not ext_jd.endswith(".docx"):
-        st.error("Resume and Job Description must both be DOCX files. Please upload .docx files.")
+        st.error("❌ Resume and Job Description must both be DOCX files. Please upload .docx files.")
     else:
-        with st.spinner("Extracting and analyzing..."):
+        with st.spinner("🧠 Extracting and analyzing your documents..."):
 
-            # === Save Uploaded Files to Temp Paths ===
+            # Save uploaded files to temp
             with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp_resume:
                 tmp_resume.write(uploaded_resume.getbuffer())
                 resume_path = tmp_resume.name
@@ -131,17 +113,16 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
                 tmp_jd.write(uploaded_jd.getbuffer())
                 jd_path = tmp_jd.name
 
-            # === Extract Text ===
             resume_text = extract_text(resume_path)
             jd_text = extract_text(jd_path)
 
             # === GPT Analysis ===
             gpt_result = get_resume_analysis(resume_text, jd_text, api_key, include_replacements=True)
             st.session_state["gpt_result"] = gpt_result
-            replacements = parse_replacements_from_output(gpt_result)
+            replacements = re.findall(r'Replace \"(.*?)\" with \"(.*?)\"', gpt_result)
             st.session_state["replacements"] = replacements
-            
-            # === Identify Company Name (User input → GPT output → Fallback) ===
+
+            # === Company Name Detection (user > GPT > fallback) ===
             if company_name_input.strip():
                 company_name = company_name_input.strip()
             else:
@@ -154,26 +135,21 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
                         company_name = extract_company_name_from_jd(jd_text)
                 except:
                     company_name = extract_company_name_from_jd(jd_text)
-
             st.session_state["company_name"] = company_name
 
-            # === Identify Candidate ===
-            candidate_name = extract_candidate_name_from_resume(resume_text)
+            candidate_name = resume_text.splitlines()[0].strip()
             st.session_state["candidate_name"] = candidate_name
 
-            # === Short Name & Timestamp for Filenames ===
             candidate_short = ''.join([word[0] for word in candidate_name.split() if word])
-            company_words = company_name.split()
-            company_short = '_'.join(company_words[:2]) if len(company_words) >= 2 else company_name.replace(' ', '_')
+            company_short = '_'.join(company_name.split()[:2]) or "Unknown"
             timestamp = datetime.now(local_tz).strftime("%y%m%d-%H%M")
-            # === Generate Resume Filename and Save Updated Resume ===
+
             resume_filename = f"Resume_{candidate_short}_{company_short}_{timestamp}.docx"
             improved_resume_path = os.path.join(tempfile.gettempdir(), resume_filename)
-            updated_doc, changes = apply_replacements_to_docx(resume_path, replacements)
+            updated_doc, _ = apply_replacements_to_docx(resume_path, replacements)
             updated_doc.save(improved_resume_path)
             st.session_state["optimized_resume_path"] = improved_resume_path
 
-            # === Generate Cover Letter ===
             cover_letter_text = generate_cover_letter(resume_text, jd_text, api_key)
             cover_letter_filename = f"Cover_Letter_{candidate_short}_{company_short}_{timestamp}.docx"
             cover_letter_path = os.path.join(tempfile.gettempdir(), cover_letter_filename)
@@ -186,15 +162,28 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
             font.size = Pt(11)
             cover_doc.save(cover_letter_path)
             st.session_state["optimized_cover_letter_path"] = cover_letter_path
+
             # === Tracker Update Block ===
             if tracker_filename:
-                # JD Tracker
+                def generate_new_id(df):
+                    if df is None or df.empty:
+                        return 1
+                    else:
+                        return int(df["ID#"].max()) + 1
+
+                def generate_excel_download(jd_df, resume_df, change_log_df):
+                    output = BytesIO()
+                    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                        jd_df.to_excel(writer, sheet_name="JD_Analysis", index=False)
+                        resume_df.to_excel(writer, sheet_name="Resume_Tracker", index=False)
+                        change_log_df.to_excel(writer, sheet_name="Resume_Change_Log", index=False)
+                    return output.getvalue()
+
                 jd_id = generate_new_id(jd_tracker)
-                jd_title = f"{'_'.join(company_name.split()[:2])}_{gpt_result.split('Job Title:')[1].split('\n')[0].strip()}" if "Job Title:" in gpt_result else f"{'_'.join(company_name.split()[:2])}_UnknownTitle"
-                analysis_date = datetime.now(local_tz).strftime("%m/%d/%y")
+                jd_title = f"{'_'.join(company_name.split()[:2])}_{gpt_result.split('Job Title:')[1].split('\\n')[0].strip()}" if "Job Title:" in gpt_result else f"{'_'.join(company_name.split()[:2])}_UnknownTitle"
+                analysis_date = datetime.now(local_tz).date()
                 jd_tracker.loc[len(jd_tracker)] = [jd_id, jd_title, company_name, analysis_date]
 
-                # Resume Tracker
                 resume_id = generate_new_id(resume_tracker)
                 try:
                     match_line = next(line for line in gpt_result.splitlines() if "Compatibility Score" in line)
@@ -202,7 +191,7 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
                 except:
                     match_percent = "N/A"
                 num_changes = len(replacements) if replacements else 0
-                created_date = datetime.now(local_tz).strftime("%m/%d/%y")
+                created_date = datetime.now(local_tz).date()
                 resume_tracker.loc[len(resume_tracker)] = [
                     resume_id,
                     os.path.basename(improved_resume_path),
@@ -212,7 +201,6 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
                     created_date
                 ]
 
-                # Change Log
                 change_id = generate_new_id(change_log_tracker)
                 for old, new in replacements:
                     change_log_tracker.loc[len(change_log_tracker)] = [
@@ -226,31 +214,31 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
                     ]
                     change_id += 1
 
-                # Offer Tracker for Download
-                st.subheader("📥 Download Tracker")
+                st.subheader("📥 Download Your Tracker File")
+                st.caption("💡 Tip: Save this file to keep a record of your job application analyses.")
                 st.download_button(
-                    label="Download Updated Tracker",
+                    label="📥 Download Tracker (.xlsx)",
                     data=generate_excel_download(jd_tracker, resume_tracker, change_log_tracker),
                     file_name=tracker_filename,
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 )
 
-# === Display GPT Analysis Output ===
+# === Output Display ===
 if st.session_state["gpt_result"]:
-    st.subheader("GPT ATS Analysis Output")
-    st.text_area("Raw Output", value=st.session_state["gpt_result"], height=400)
+    st.subheader("🧠 GPT ATS Analysis Output")
+    st.text_area("GPT Analysis Results", value=st.session_state["gpt_result"], height=400)
 
-# === Download Buttons ===
 if st.session_state["optimized_resume_path"]:
+    st.subheader("📎 Documents")
     st.download_button(
-        "Download Optimized Resume",
+        "📄 Download Optimized Resume",
         open(st.session_state["optimized_resume_path"], "rb"),
         file_name=os.path.basename(st.session_state["optimized_resume_path"])
     )
 
 if st.session_state["optimized_cover_letter_path"]:
     st.download_button(
-        "Download Cover Letter",
+        "✉️ Download Cover Letter",
         open(st.session_state["optimized_cover_letter_path"], "rb"),
         file_name=os.path.basename(st.session_state["optimized_cover_letter_path"])
     )
