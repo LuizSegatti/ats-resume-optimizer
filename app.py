@@ -142,21 +142,21 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
             st.session_state["replacements"] = replacements
             
             # === Identify Company Name (User input → GPT output → Fallback) ===
-			if company_name_input.strip():
-    			company_name = company_name_input.strip()
-			else:
-			    try:
-			        for line in gpt_result.splitlines():
-			            if "Company Name:" in line:
-			                company_name = line.split("Company Name:")[1].strip()
-			                break
-			        else:
-			            company_name = extract_company_name_from_jd(jd_text)
-			    except:
-			        company_name = extract_company_name_from_jd(jd_text)
+            if company_name_input.strip():
+                company_name = company_name_input.strip()
+            else:
+                try:
+                    for line in gpt_result.splitlines():
+                        if "Company Name:" in line:
+                            company_name = line.split("Company Name:")[1].strip()
+                            break
+                    else:
+                        company_name = extract_company_name_from_jd(jd_text)
+                except:
+                    company_name = extract_company_name_from_jd(jd_text)
 
-			st.session_state["company_name"] = company_name
-            
+            st.session_state["company_name"] = company_name
+
             # === Identify Candidate ===
             candidate_name = extract_candidate_name_from_resume(resume_text)
             st.session_state["candidate_name"] = candidate_name
