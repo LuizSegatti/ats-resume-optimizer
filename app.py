@@ -165,69 +165,69 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
             cover_doc.save(cover_letter_path)
             st.session_state["optimized_cover_letter_path"] = cover_letter_path
 
- # === Tracker Update Block (v1.3.1) ===
-if tracker_filename:
-    # Function to generate 3-digit ID (001, 002, ...)
-    def generate_new_id(df):
-        return f"{(len(df) + 1):03d}"
+    # === Tracker Update Block (v1.3.1) ===
+    if tracker_filename:
+        # Function to generate 3-digit ID (001, 002, ...)
+        def generate_new_id(df):
+            return f"{(len(df) + 1):03d}"
 
-    # Function to generate downloadable Excel report
-    def generate_excel_download(jd_df, resume_df, change_log_df):
-        output = BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            jd_df.to_excel(writer, sheet_name="JD_Analysis", index=False)
-            resume_df.to_excel(writer, sheet_name="Resume_Tracker", index=False)
-            change_log_df.to_excel(writer, sheet_name="Resume_Change_Log", index=False)
-        return output.getvalue()
+        # Function to generate downloadable Excel report
+        def generate_excel_download(jd_df, resume_df, change_log_df):
+            output = BytesIO()
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                jd_df.to_excel(writer, sheet_name="JD_Analysis", index=False)
+                resume_df.to_excel(writer, sheet_name="Resume_Tracker", index=False)
+                change_log_df.to_excel(writer, sheet_name="Resume_Change_Log", index=False)
+            return output.getvalue()
 
-    # Generate new ID for JD Tracker
-    jd_id = generate_new_id(jd_tracker)
+        # Generate new ID for JD Tracker
+        jd_id = generate_new_id(jd_tracker)
 
-    # Extract Job Title from GPT result
-    job_title = "UnknownTitle"
-    for line in gpt_result.splitlines():
-        if "Job Title:" in line:
-            job_title = line.split("Job Title:")[1].strip()[:40]
-            break
+        # Extract Job Title from GPT result
+        job_title = "UnknownTitle"
+        for line in gpt_result.splitlines():
+            if "Job Title:" in line:
+                job_title = line.split("Job Title:")[1].strip()[:40]
+                break
 
-    # Format JD Title (max 50 chars): First 2 words of Company + Job Title
-    jd_title = f"{'_'.join(company_name.split()[:2])}_{job_title}"[:50]
+        # Format JD Title (max 50 chars): First 2 words of Company + Job Title
+        jd_title = f"{'_'.join(company_name.split()[:2])}_{job_title}"[:50]
 
-    # Store analysis date as real date value
-    analysis_date = datetime.now(local_tz).date()
+        # Store analysis date as real date value
+        analysis_date = datetime.now(local_tz).date()
 
-    # Append to JD Tracker
-    jd_tracker.loc[len(jd_tracker)] = [jd_id, jd_title, company_name, analysis_date]
+        # Append to JD Tracker
+        jd_tracker.loc[len(jd_tracker)] = [jd_id, jd_title, company_name, analysis_date]
 
-            resume_id = generate_new_id(resume_tracker)
-            try:
-                match_line = next(line for line in gpt_result.splitlines() if "Compatibility Score" in line)
-                match_percent = int(''.join(filter(str.isdigit, match_line.split('%')[0])))
-            except:
-                match_percent = "N/A"
-            num_changes = len(replacements) if replacements else 0
-            created_date = datetime.now(local_tz).date()
-            resume_tracker.loc[len(resume_tracker)] = [
-                resume_id,
+        resume_id = generate_new_id(resume_tracker)
+        try:
+            match_line = next(line for line in gpt_result.splitlines() if "Compatibility Score" in line)
+            match_percent = int(''.join(filter(str.isdigit, match_line.split('%')[0])))
+        except:
+            match_percent = "N/A"
+        num_changes = len(replacements) if replacements else 0
+        created_date = datetime.now(local_tz).date()
+        resume_tracker.loc[len(resume_tracker)] = [
+            resume_id,
+            os.path.basename(improved_resume_path),
+            jd_title,
+            match_percent,
+            num_changes,
+            created_date
+        ]
+
+        change_id = generate_new_id(change_log_tracker)
+        for old, new in replacements:
+            change_log_tracker.loc[len(change_log_tracker)] = [
+                change_id,
+                uploaded_resume.name,
                 os.path.basename(improved_resume_path),
-                jd_title,
-                match_percent,
-                num_changes,
-                created_date
+                old,
+                new,
+                "Resume Body",
+                jd_title
             ]
-
-            change_id = generate_new_id(change_log_tracker)
-            for old, new in replacements:
-                change_log_tracker.loc[len(change_log_tracker)] = [
-                    change_id,
-                    uploaded_resume.name,
-                    os.path.basename(improved_resume_path),
-                    old,
-                    new,
-                    "Resume Body",
-                    jd_title
-                ]
-                change_id = f"{int(change_id)+1:03d}"
+            change_id = f"{int(change_id)+1:03d}"
 
             st.subheader("📥 Download Your Tracker File")
             st.caption("💡 Tip: Save this file to keep a record of your job application analyses.")
