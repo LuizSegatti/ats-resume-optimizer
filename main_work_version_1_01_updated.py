@@ -1,3 +1,4 @@
+# Updated function "Apply Replacements to DOCX"
 # Resume Matcher App – GPT-Based Analysis, Resume Rewriter, and Excel Logger (Streamlit Version)
 
 import streamlit as st
@@ -89,7 +90,7 @@ def parse_replacements(gpt_output):
     return re.findall(r"(?i)replace [“\"](.+?)[”\"] with [“\"](.+?)[”\"]", gpt_output)
 
 # === Apply Replacements to DOCX ===
-def apply_replacements_to_docx(original_path, replacements):
+def apply_replacements_to_docx(original_path, replacements, save_path=None):
     while True:
         try:
             doc = docx.Document(original_path)
@@ -106,7 +107,11 @@ def apply_replacements_to_docx(original_path, replacements):
                 if updated_text != para.text:
                     para.text = updated_text
                     changes.append((old, new, "Resume Body"))
-    return doc, changes
+
+    # Save if save_path provided
+    if save_path:
+        doc.save(save_path)
+    return doc, save_path or original_path
 
 # === Extract Final Optimized Resume Text ===
 def extract_final_resume_text(gpt_output):
