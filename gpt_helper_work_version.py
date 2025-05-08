@@ -98,6 +98,10 @@ def get_resume_analysis(resume_text, jd_text, api_key, include_replacements=Fals
         "- Suggest sentence rewrites per section\n"
         "- Highlight formatting and structural ATS issues\n"
         "- Provide summary and rationale\n"
+
+        "Return a single valid JSON object.\n" 
+        "Do NOT use markdown formatting (no triple backticks).\n" 
+        "Do NOT add any explanations or text outside the JSON.\n"
     )
 
     full_prompt = (
@@ -113,9 +117,7 @@ def get_resume_analysis(resume_text, jd_text, api_key, include_replacements=Fals
                 {
                     "role": "system",
                     "content": (
-                        "You are a professional ATS parser.\n"
-                        "Return the full analysis in JSON format only.\n"
-                        "Do not include explanations or commentary — only valid JSON.\n"
+                        "You are an API service that outputs ONLY valid JSON. Do not include markdown (no triple backticks), explanations, or formatting — return a clean JSON object only.\n"
                     )
                 },
                 {"role": "user", "content": full_prompt}
