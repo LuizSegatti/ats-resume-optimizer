@@ -1,4 +1,4 @@
-# === ATS Resume Optimizer v1.4.1 – GPT Enhanced + Tracker ===
+# === ATS Resume Optimizer v1.4.2 – GPT Enhanced + Tracker ===
 
 import streamlit as st
 import os
@@ -17,7 +17,7 @@ from main_work_version_1_01_updated import extract_text, apply_replacements_to_d
 
 # === App Title and Layout ===
 st.set_page_config(page_title="ATS Resume Optimizer", layout="wide")
-st.title("📄 ATS Resume Optimizer v1.4.1 – GPT Enhanced + Tracker")
+st.title("📄 ATS Resume Optimizer v1.4.2 – GPT Enhanced + Tracker")
 
 # === Initialize session state variables ===
 for key in ["gpt_result", "optimized_resume_path", "optimized_cover_letter_path", "company_name", "candidate_name", "replacements"]:
@@ -135,19 +135,12 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
             replacements = re.findall(r'Replace \"(.*?)\" with \"(.*?)\"', gpt_result)
             st.session_state["replacements"] = replacements
 
-            # === Company Name Detection (user > GPT > fallback) ===
+            # === Company Name Detection (user > GPT > fallback) (v1.4.2)===
             if company_name_input.strip():
                 company_name = company_name_input.strip()
             else:
-                try:
-                    for line in gpt_result.splitlines():
-                        if "Company Name:" in line:
-                            company_name = line.split("Company Name:")[1].strip()
-                            break
-                    else:
-                        company_name = extract_company_name_from_jd(jd_text)
-                except:
-                    company_name = extract_company_name_from_jd(jd_text)
+                company_name = gpt_result.get("Parsed_Job_Description", {}).get("Company_Name", "UnknownCompany")
+
             st.session_state["company_name"] = company_name
 
             candidate_name = resume_text.splitlines()[0].strip()
@@ -194,12 +187,8 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
         # Generate new ID for JD Tracker
         jd_id = generate_new_id(jd_tracker)
 
-        # Extract Job Title from GPT result
-        job_title = "UnknownTitle"
-        for line in gpt_result.splitlines():
-            if "Job Title:" in line:
-                job_title = line.split("Job Title:")[1].strip()[:40]
-                break
+        # Extract Job Title from GPT result (v1.4.2)
+        job_title = gpt_result.get("Parsed_Job_Description", {}).get("Job_Title", "UnknownTitle")[:40]
 
         # Format JD Title (max 50 chars): First 2 words of Company + Job Title
         jd_title = f"{'_'.join(company_name.split()[:2])}_{job_title}"[:50]
@@ -211,11 +200,10 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
         jd_tracker.loc[len(jd_tracker)] = [jd_id, jd_title, company_name, analysis_date]
 
         resume_id = generate_new_id(resume_tracker)
-        try:
-            match_line = next(line for line in gpt_result.splitlines() if "Compatibility Score" in line)
-            match_percent = int(''.join(filter(str.isdigit, match_line.split('%')[0])))
-        except:
-            match_percent = "N/A"
+
+        # Fix Compatibility Score Extraction (v1.4.2)
+        match_percent = gpt_result.get("Scoring", {}).get("ATS_Compatibility_Score", "N/A")
+
         num_changes = len(replacements) if replacements else 0
         created_date = datetime.now(local_tz).date()
         resume_tracker.loc[len(resume_tracker)] = [
