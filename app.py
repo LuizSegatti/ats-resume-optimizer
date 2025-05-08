@@ -1,4 +1,4 @@
-# === ATS Resume Optimizer v1.4.3 – GPT Enhanced + Tracker ===
+# === ATS Resume Optimizer v1.4.4 – GPT Enhanced + Tracker ===
 
 import streamlit as st
 import os
@@ -17,7 +17,7 @@ from main_work_version_1_01_updated import extract_text, apply_replacements_to_d
 
 # === App Title and Layout ===
 st.set_page_config(page_title="ATS Resume Optimizer", layout="wide")
-st.title("📄 ATS Resume Optimizer v1.4.3 – GPT Enhanced + Tracker")
+st.title("📄 ATS Resume Optimizer v1.4.4 – GPT Enhanced + Tracker")
 
 # === Initialize session state variables ===
 for key in ["gpt_result", "optimized_resume_path", "optimized_cover_letter_path", "company_name", "candidate_name", "replacements"]:
@@ -142,7 +142,7 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
             if company_name_input.strip():
                 company_name = company_name_input.strip()
             else:
-                company_name = gpt_result.get("Parsed_Job_Description", {}).get("Company_Name", "UnknownCompany")
+                company_name = gpt_result.get("JobDescription", {}).get("CompanyName", "UnknownCompany") #===Resume/CL filenames use initials/timestamp (v1.4.4)
 
             st.session_state["company_name"] = company_name
 
@@ -219,7 +219,10 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
         ]
 
         change_id = generate_new_id(change_log_tracker)
-        for change in gpt_result.get("Change_Log", []):
+        
+        # Replacements/Change_Log loop (v1.4.4)===
+        for change in gpt_result.get("ResumeImprovementSuggestions", []):
+
             was = change.get("Was", "")
             new = change.get("New", "")
             section = change.get("Section", "Others")
@@ -235,20 +238,21 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
             ]
             change_id = f"{int(change_id)+1:03d}"
 
-
-            st.subheader("📥 Download Your Tracker File")
-            st.caption("💡 Tip: Save this file to keep a record of your job application analyses.")
-            st.download_button(
-                label="📥 Download Tracker (.xlsx)",
-                data=generate_excel_download(jd_tracker, resume_tracker, change_log_tracker),
-                file_name=tracker_filename,
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+        # === Download updated Tracker file (v1.4.4)===
+        st.subheader("📥 Download Your Tracker File")
+        st.caption("💡 Tip: Save this file to keep a record of your job application analyses.")
+        st.download_button(
+            label="📥 Download Tracker (.xlsx)",
+            data=generate_excel_download(jd_tracker, resume_tracker, change_log_tracker),
+            file_name=tracker_filename,
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 
 # === Output Display ===
 if st.session_state["gpt_result"]:
     st.subheader("🧠 GPT ATS Analysis Output")
-    st.text_area("GPT Analysis Results", value=st.session_state["gpt_result"], height=400)
+    st.json(st.session_state["gpt_result"]) #Output Display – st.text_area() Breaks JSON View (v1.4.4)===
+
 
 if st.session_state["optimized_resume_path"]:
     st.subheader("📎 Documents")
