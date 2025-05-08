@@ -1,4 +1,4 @@
-# gpt_helper_work_version.py (v1.1) – Optimized for ATS Resume Optimizer with Section Detection
+# gpt_helper_work_version.py (v1.2) – Optimized for ATS Resume Optimizer with Section Detection
 
 from openai import OpenAI
 
@@ -110,11 +110,18 @@ def get_resume_analysis(resume_text, jd_text, api_key, include_replacements=Fals
         response = client.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": "You are a professional ATS optimization engine."},
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a professional ATS parser.\n"
+                        "Return the full analysis in JSON format only.\n"
+                        "Do not include explanations or commentary — only valid JSON.\n"
+                    )
+                },
                 {"role": "user", "content": full_prompt}
             ],
-            temperature=0.5,
-            max_tokens=2000
+            temperature=0.4,
+            max_tokens=2500
         )
         return response.choices[0].message.content
     except Exception as e:
