@@ -1,4 +1,4 @@
-# === ATS Resume Optimizer v1.3.1 – GPT Enhanced + Tracker ===
+# === ATS Resume Optimizer v1.3.2 – GPT Enhanced + Tracker ===
 
 import streamlit as st
 import os
@@ -17,7 +17,7 @@ from main_work_version_1_01_updated import extract_text, apply_replacements_to_d
 
 # === App Title and Layout ===
 st.set_page_config(page_title="ATS Resume Optimizer", layout="wide")
-st.title("📄 ATS Resume Optimizer v1.3.1 – GPT Enhanced + Tracker")
+st.title("📄 ATS Resume Optimizer v1.3.2 – GPT Enhanced + Tracker")
 
 # === Initialize session state variables ===
 for key in ["gpt_result", "optimized_resume_path", "optimized_cover_letter_path", "company_name", "candidate_name", "replacements"]:
@@ -217,17 +217,22 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
         ]
 
         change_id = generate_new_id(change_log_tracker)
-        for old, new in replacements:
+        for change in gpt_result.get("Change_Log", []):
+            was = change.get("Was", "")
+            new = change.get("New", "")
+            section = change.get("Section", "Others")
+
             change_log_tracker.loc[len(change_log_tracker)] = [
                 change_id,
                 uploaded_resume.name,
                 os.path.basename(improved_resume_path),
-                old,
+                was,
                 new,
-                "Resume Body",
+                section,
                 jd_title
             ]
             change_id = f"{int(change_id)+1:03d}"
+
 
             st.subheader("📥 Download Your Tracker File")
             st.caption("💡 Tip: Save this file to keep a record of your job application analyses.")
