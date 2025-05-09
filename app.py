@@ -17,7 +17,7 @@ from main_work_version_1_01_updated import extract_text, apply_replacements_to_d
 
 # === App Title and Layout ===
 st.set_page_config(page_title="ATS Resume Optimizer", layout="wide")
-st.title("📄 ATS Resume Optimizer v1.4.5 – GPT Enhanced + Tracker")
+st.title("📄 ATS Resume Optimizer v1.4.6 – GPT Enhanced + Tracker")
 
 # === Initialize session state variables ===
 for key in ["gpt_result", "optimized_resume_path", "optimized_cover_letter_path", "company_name", "candidate_name", "replacements"]:
