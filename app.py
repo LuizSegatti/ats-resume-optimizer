@@ -1,4 +1,4 @@
-# === ATS Resume Optimizer v1.4.5 – GPT Enhanced + Tracker ===
+# === ATS Resume Optimizer v1.4.6 – GPT Enhanced + Tracker ===
 
 import streamlit as st
 import os
@@ -134,7 +134,7 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
             st.session_state["gpt_result"] = gpt_result
             
             # structured JSON parsing (v1.4.3)===
-            replacements = [(change.get("Was", ""), change.get("New", "")) for change in gpt_result.get("Resume_Improvement_Suggestions", [])]
+            replacements = [(change.get("Was", ""), change.get("New", "")) for change in gpt_result.get("ResumeImprovementSuggestions", [])] #JSON key path updated updated (v1.4.6) ===
 
             st.session_state["replacements"] = replacements
 
@@ -142,7 +142,7 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
             if company_name_input.strip():
                 company_name = company_name_input.strip()
             else:
-                company_name = gpt_result.get("Parsed_JD", {}).get("Company_Name", "UnknownCompany") #===Resume/CL filenames use initials/timestamp (v1.4.5)
+                company_name = gpt_result.get("JobDescription", {}).get("CompanyName", "UnknownCompany") #Company's name key path updated (v1.4.6)
 
             st.session_state["company_name"] = company_name
 
@@ -191,7 +191,7 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
         jd_id = generate_new_id(jd_tracker)
 
         # Extract Job Title from GPT result (v1.4.2)
-        job_title = gpt_result.get("Parsed_Job_Description", {}).get("Job_Title", "UnknownTitle")[:40]
+        job_title = gpt_result.get("JobDescription", {}).get("JobTitle", "UnknownTitle")[:40] #JSON key path updated updated (v1.4.6) ===
 
         # Format JD Title (max 50 chars): First 2 words of Company + Job Title
         jd_title = f"{'_'.join(company_name.split()[:2])}_{job_title}"[:50]
@@ -205,7 +205,8 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
         resume_id = generate_new_id(resume_tracker)
 
         # Fix Compatibility Score Extraction (v1.4.2)
-        match_percent = gpt_result.get("Scoring", {}).get("ATS_Compatibility_Score", "N/A")
+        match_percent = gpt_result.get("scoring", {}).get("atsCompatibilityScore", "N/A") #JSON key path updated updated (v1.4.6) ===
+
 
         num_changes = len(replacements) if replacements else 0
         created_date = datetime.now(local_tz).date()
@@ -221,7 +222,7 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
         change_id = generate_new_id(change_log_tracker)
         
         # Replacements/Change_Log loop (v1.4.5)===
-        for change in gpt_result.get("Resume_Improvement_Suggestions", []):
+        for change in gpt_result.get("ResumeImprovementSuggestions", []): #JSON key path updated updated (v1.4.6) ===
 
             was = change.get("Was", "")
             new = change.get("New", "")
@@ -254,11 +255,11 @@ if st.session_state["gpt_result"]:
     st.json(st.session_state["gpt_result"]) #Output Display – st.text_area() Breaks JSON View (v1.4.4)===
 
     # ===UI Enhancement (Optional) (1.4.5) ===
-    score = gpt_result.get("Scoring", {}).get("ATS_Compatibility_Score", "N/A")
+    score = gpt_result.get("scoring", {}).get("atsCompatibilityScore", "N/A") #JSON key path updated updated (v1.4.6) ===
     if score != "N/A":
         st.markdown(f"### ✅ Compatibility Score: **{score}%**")
 
-    num_changes = len(gpt_result.get("Resume_Improvement_Suggestions", []))
+    num_changes = len(gpt_result.get("ResumeImprovementSuggestions", []))#JSON key path updated updated (v1.4.6) ===
     if num_changes > 0:
         st.markdown(f"### ✏️ Number of Suggested Improvements: **{num_changes}**")
 
