@@ -1,4 +1,4 @@
-# === ATS Resume Optimizer v1.4.4 – GPT Enhanced + Tracker ===
+# === ATS Resume Optimizer v1.4.5 – GPT Enhanced + Tracker ===
 
 import streamlit as st
 import os
@@ -17,7 +17,7 @@ from main_work_version_1_01_updated import extract_text, apply_replacements_to_d
 
 # === App Title and Layout ===
 st.set_page_config(page_title="ATS Resume Optimizer", layout="wide")
-st.title("📄 ATS Resume Optimizer v1.4.4 – GPT Enhanced + Tracker")
+st.title("📄 ATS Resume Optimizer v1.4.5 – GPT Enhanced + Tracker")
 
 # === Initialize session state variables ===
 for key in ["gpt_result", "optimized_resume_path", "optimized_cover_letter_path", "company_name", "candidate_name", "replacements"]:
@@ -142,7 +142,7 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
             if company_name_input.strip():
                 company_name = company_name_input.strip()
             else:
-                company_name = gpt_result.get("JobDescription", {}).get("CompanyName", "UnknownCompany") #===Resume/CL filenames use initials/timestamp (v1.4.4)
+                company_name = gpt_result.get("Parsed_JD", {}).get("Company_Name", "UnknownCompany") #===Resume/CL filenames use initials/timestamp (v1.4.5)
 
             st.session_state["company_name"] = company_name
 
@@ -220,8 +220,8 @@ if analyze_btn and uploaded_resume and uploaded_jd and api_key:
 
         change_id = generate_new_id(change_log_tracker)
         
-        # Replacements/Change_Log loop (v1.4.4)===
-        for change in gpt_result.get("ResumeImprovementSuggestions", []):
+        # Replacements/Change_Log loop (v1.4.5)===
+        for change in gpt_result.get("Resume_Improvement_Suggestions", []):
 
             was = change.get("Was", "")
             new = change.get("New", "")
@@ -253,6 +253,14 @@ if st.session_state["gpt_result"]:
     st.subheader("🧠 GPT ATS Analysis Output")
     st.json(st.session_state["gpt_result"]) #Output Display – st.text_area() Breaks JSON View (v1.4.4)===
 
+    # ===UI Enhancement (Optional) (1.4.5) ===
+    score = gpt_result.get("Scoring", {}).get("ATS_Compatibility_Score", "N/A")
+    if score != "N/A":
+        st.markdown(f"### ✅ Compatibility Score: **{score}%**")
+
+    num_changes = len(gpt_result.get("Resume_Improvement_Suggestions", []))
+    if num_changes > 0:
+        st.markdown(f"### ✏️ Number of Suggested Improvements: **{num_changes}**")
 
 if st.session_state["optimized_resume_path"]:
     st.subheader("📎 Documents")
