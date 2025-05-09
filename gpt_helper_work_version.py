@@ -1,4 +1,4 @@
-# gpt_helper_work_version.py (v1.2) – Optimized for ATS Resume Optimizer with Section Detection
+# gpt_helper_work_version.py (v1.3) – JSON prompt optimized
 
 from openai import OpenAI
 
@@ -28,9 +28,9 @@ def get_resume_analysis(resume_text, jd_text, api_key, include_replacements=Fals
         "- Responsibilities\n"
         "- Preferred Qualifications and Experience\n"
         "- Salary range\n"
-        "- Relocation support\n"
-        "- Is it required US Citizen or Permanent Resident?\n"
-        "- Is Licensed Professional Engineer, PE or P.E. required? (If not mentioned, consider as no requirement)\n\n"
+        "- Relocation support (If not mentioned, answer with NM)\n"
+        "- Is it required US Citizen or Permanent Resident? (If not mentioned, answer with NM)\n"
+        "- Is Licensed Professional Engineer, PE or P.E. required? (If not mentioned, answer with Not required)\n\n"
 
         "3️⃣ Resume Evaluation:\n"
         "- Match hard and soft skills (consider frequency/context)\n"
@@ -99,33 +99,52 @@ def get_resume_analysis(resume_text, jd_text, api_key, include_replacements=Fals
         "- Highlight formatting and structural ATS issues\n"
         "- Provide summary and rationale\n"
 
-        "Return a single valid JSON object.\n" 
-        "Do NOT use markdown formatting (no triple backticks).\n" 
-        "Do NOT add any explanations or text outside the JSON.\n"
+        "🔟 Return Final Output Structure:\n"
+        "- 'ResumeContent': parsed resume information\n"
+        "- 'JobDescription': parsed JD fields\n"
+        "- 'ResumeEvaluation': all ATS alignment factors\n"
+        "- 'RedFlagDetection': detected resume risks\n"
+        "- 'Scoring': detailed scoring breakdown\n"
+        "- 'ResumeImprovementSuggestions': full change log with Was/New/Section\n"
+        "- 'NewOptimizedResume': ATS rewritten resume text (string format)\n"
+        "- 'Output':\n"
+        "  - 'CompatibilityScoreOriginal': original resume score\n"
+        "  - 'CompatibilityScoreOptimized': after improvements\n"
+        "  - 'SummaryOfMatchedAndMissingSkills': list\n"
+        "  - 'ChangeLog': list of {'Was', 'New', 'Section'}\n"
+        "  - 'ResumeImprovementRationale': explanation\n"
+        "  - 'FinalOptimizedResumeText': final text-only resume\n"
+        "- 'ImprovementsBreakdown':\n"
+        "  - 'MissingAndUnderusedKeywords': list\n"
+        "  - 'SentenceRewritesPerSection': list\n"
+        "  - 'FormattingAndStructuralATSIssues': notes\n"
+        "  - 'SummaryAndRationale': overview justification\n\n"
+
+        "✅ Return ONLY a single valid JSON object using the exact key names above. Do not include any explanations or markdown. Use double quotes for all keys and string values."
     )
+
+    if prompt_instructions:
+        base_prompt += f"\n\n{prompt_instructions}"
 
     full_prompt = (
         f"{base_prompt}\n\n"
         f"Job Description:\n{jd_text}\n\n"
-        f"Resume:\n{resume_text}"
+        f"Resume:\n{resume_text}\n"
     )
 
     try:
         response = client.chat.completions.create(
             model="gpt-4",
             messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are an API service that outputs ONLY valid JSON. Do not include markdown (no triple backticks), explanations, or formatting — return a clean JSON object only.\n"
-                    )
-                },
+                {"role": "system", "content": "You are a professional ATS resume assistant."},
                 {"role": "user", "content": full_prompt}
             ],
-            temperature=0.4,
-            max_tokens=2500
+            temperature=0.2,
+            top_p=1.0,
+            max_tokens=4000
         )
         return response.choices[0].message.content
+    
     except Exception as e:
         return f"Error contacting OpenAI: {str(e)}"
 
