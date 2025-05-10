@@ -1,8 +1,8 @@
-# gpt_helper_work_version.py (v1.3) – JSON prompt optimized
+# gpt_helper_work_version.py (v1.3.1) – JSON prompt optimized
 
 from openai import OpenAI
 
-def get_resume_analysis(resume_text, jd_text, api_key, include_replacements=False):
+def get_resume_analysis(resume_text, jd_text, api_key, include_replacements=False, prompt_instructions=None): #default value declared (v1.3.1)
     client = OpenAI(api_key=api_key)
 
     base_prompt = (
